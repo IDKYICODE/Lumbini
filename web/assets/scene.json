@@ -1,0 +1,80 @@
+{
+ "zones": {
+  "ext": {
+   "glb": "zones/ext.glb",
+   "fx": "zones/ext_fx.glb",
+   "light": "light/ext.jpg",
+   "moods": [
+    "day",
+    "night"
+   ],
+   "plants": null,
+   "lmax": {
+    "day": 13.118,
+    "night": 14.8647
+   }
+  },
+  "gf": {
+   "glb": "zones/gf.glb",
+   "fx": "zones/gf_fx.glb",
+   "light": "light/gf.jpg",
+   "moods": [
+    "day",
+    "night"
+   ],
+   "plants": "zones/gf_plants.glb",
+   "lmax": {
+    "day": 10.5196,
+    "night": 10.9925
+   }
+  },
+  "ff": {
+   "glb": "zones/ff.glb",
+   "fx": "zones/ff_fx.glb",
+   "light": "light/ff.jpg",
+   "moods": [
+    "day",
+    "night"
+   ],
+   "plants": "zones/ff_plants.glb",
+   "lmax": {
+    "day": 13.3749,
+    "night": 13.4663
+   }
+  },
+  "sf": {
+   "glb": "zones/sf.glb",
+   "fx": "zones/sf_fx.glb",
+   "light": "light/sf.jpg",
+   "moods": [
+    "day",
+    "night"
+   ],
+   "plants": "zones/sf_plants.glb",
+   "lmax": {
+    "day": 5.3029,
+    "night": 5.3518
+   }
+  },
+  "site": {
+   "glb": "zones/site.glb",
+   "fx": "zones/site_fx.glb",
+   "light": "light/site.jpg",
+   "moods": [
+    "day",
+    "night"
+   ],
+   "plants": null,
+   "lmax": {
+    "day": 2.8439,
+    "night": 0.1023
+   }
+  }
+ },
+ "layout": "layout.json",
+ "sun": [
+  30.0,
+  35.0
+ ],
+ "quick": false
+}

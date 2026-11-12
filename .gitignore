@@ -1,0 +1,6 @@
+assets_src/
+build/
+refs/video/
+refs/frames/
+__pycache__/
+node_modules/
