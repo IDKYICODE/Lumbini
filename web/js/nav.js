@@ -30,6 +30,15 @@
     x.fillStyle = '#FBF8F3'; x.font = '600 54px Jost, Helvetica, Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(txt, 64, 68);
     return ctex(c);
   }
+  function seatIcon() {           // round badge with a chair (side view)
+    const c = cnv(128, 128), x = c.getContext('2d');
+    x.fillStyle = 'rgba(43,30,22,0.85)'; x.beginPath(); x.arc(64, 64, 58, 0, 7); x.fill();
+    x.lineWidth = 5; x.strokeStyle = '#B9905C'; x.stroke();
+    x.strokeStyle = '#FBF8F3'; x.lineWidth = 8; x.lineCap = x.lineJoin = 'round';
+    x.beginPath(); x.moveTo(46, 32); x.lineTo(46, 72); x.lineTo(84, 72); x.stroke();
+    x.beginPath(); x.moveTo(52, 72); x.lineTo(52, 96); x.moveTo(80, 72); x.lineTo(80, 96); x.stroke();
+    return ctex(c);
+  }
   function beamTex() {
     const c = cnv(4, 64), x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 0, 64);
     g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(255,255,255,0.9)'); x.fillStyle = g; x.fillRect(0, 0, 4, 64);
@@ -177,6 +186,14 @@
           this.acts.push({ kind: 'lift', lv, to, sp, label: 'Lift to ' + (V.layout.levels[to] || {}).name, size: .24 });
         }));
       }
+      const chair = seatIcon();
+      (V.layout.seats || []).forEach((s) => {
+        const sp = new T.Sprite(new T.SpriteMaterial({ map: chair, transparent: true, depthWrite: false, toneMapped: false }));
+        sp.position.copy(V.B(s.x, s.y, s.z + s.h + .45)); sp.scale.setScalar(.22);
+        sp.userData = { t: 'act', i: this.acts.length }; this.markers.add(sp); this.hits.push(sp);
+        this.acts.push({ kind: 'seat', lv: this.levelOf(s.z), s, sp, label: 'Sit · ' + s.name, size: .22 });
+      });
+      const standBtn = document.getElementById('stand'); if (standBtn) standBtn.onclick = (e) => { e.stopPropagation(); this.stand(); };
       this.hoverC = cnv(512, 160); this.hoverT = ctex(this.hoverC); this.hoverText = '';
       this.hover = new T.Sprite(new T.SpriteMaterial({ map: this.hoverT, transparent: true, depthWrite: false, depthTest: false, toneMapped: false }));
       this.hover.scale.set(.8, .25, 1); this.hover.renderOrder = 997; this.hover.visible = false; this.markers.add(this.hover);
@@ -231,13 +248,33 @@
       this._ray.setFromCamera(this._ndc, this._ray.camera); this._ray.far = 30;
       for (const h of this._ray.intersectObjects(this.hits, false)) { if (this.visibleHit(h.object.userData)) { this.activate(h.object.userData); return; } }
     },
-    confirm() { if (this.target) this.activate(this.target); },
+    confirm() { if (this.target) this.activate(this.target); else if (this.seated) this.stand(); },
     activate(ud) {
       if (ud.t === 'spot') return this.go(ud.i);
       const a = this.acts[ud.i];
       if (a.kind === 'lift' && !this.pending) { this.pending = { t: 'lift', to: a.to }; this.fadeDir = 1; }
+      if (a.kind === 'seat' && !this.pending) { this.pending = { t: 'sit', s: a.s }; this.fadeDir = 1; }
     },
     go(i) { if (!this.pending && V.layout.spots[i]) { this.pending = { t: 'spot', i }; this.fadeDir = 1; } },
+    stand() { if (!this.pending && this.seated) { this.pending = { t: 'stand' }; this.fadeDir = 1; } },
+    setSeated(s) { this.seated = s; this.seatT = performance.now(); document.body.classList.toggle('seated', !!s); },
+    sitDown(s) {         // eyes at seated height over the seat, facing the way the seat faces
+      const yaw = Math.atan2(-s.fx, s.fy), eye = s.z + s.h + .72 - 1.6;
+      this.setPos(s.x, s.y, eye, yaw); this.setSeated(s);
+      const lc = this.cam.components['look-controls'];
+      if (lc && !this.el.sceneEl.is('vr-mode')) { lc.pitchObject.rotation.x = -.08; lc.yawObject.rotation.y = 0; this.el.object3D.rotation.y = yaw; }
+      this.announce(s.name, 'Seated');
+    },
+    standUp() {          // step out in front of the seat onto open floor
+      const s = this.seated; if (!s) return;
+      let tx = s.x + s.fx * .7, ty = s.y + s.fy * .7, z = this.standable(tx, ty, s.z);
+      if (z === null) search: for (let r = .1; r < 1.6; r += .1) for (let a = 0; a < 360; a += 20) {
+        const x = s.x + s.fx * .7 + r * Math.cos(a * Math.PI / 180), y = s.y + s.fy * .7 + r * Math.sin(a * Math.PI / 180);
+        if ((z = this.standable(x, y, s.z)) !== null) { tx = x; ty = y; break search; }
+      }
+      this.setPos(tx, ty, z === null ? s.z : z, Math.atan2(-s.fx, s.fy));
+      this.announce(this.nearestSpotName(), (V.layout.levels[this.levelOf(this.z)] || {}).name);
+    },
     step(d) { const n = V.layout.spots.length; this.go(((this.spotIdx + d) % n + n) % n); },
 
     /* ---------------- moving the rig ---------------- */
@@ -246,6 +283,7 @@
     setPos(x, y, z, yaw) {
       const rig = this.el.object3D; this.px = x; this.py = y; this.z = z; this.zShow = z;
       rig.position.copy(V.B(x, y, z)); rig.rotation.y = yaw - this.camYaw(); this.vel.set(0, 0);
+      if (this.seated) this.setSeated(null);
     },
     place(i) {
       const s = V.layout.spots[i]; this.spotIdx = i;
@@ -263,6 +301,8 @@
     applyPending(p) {
       if (p.t === 'mood') { this.holdFade = true; V.setMood(p.mood, this.el.sceneEl).finally(() => { this.moodBusy = false; this.holdFade = false; }); return; }
       if (p.t === 'spot') this.place(p.i);
+      else if (p.t === 'sit') this.sitDown(p.s);
+      else if (p.t === 'stand') this.standUp();
       else if (p.t === 'lift') {
         const L = V.layout.lift, z = this.LZ[p.to];
         let tx = L.x + L.out, ty = L.y;
@@ -311,7 +351,9 @@
       if (this._f.lengthSq() < 1e-4) this._f.set(-Math.sin(rig.rotation.y), 0, -Math.cos(rig.rotation.y));
       this._f.normalize();
       const fx = this._f.x, fy = -this._f.z, rx = fy, ry = -fx;           // forward and right in plan coords
-      const tx = (fx * inp.iz + rx * inp.ix) * SPEED, ty = (fy * inp.iz + ry * inp.ix) * SPEED;
+      const still = !!this.seated;
+      if (still && !this.pending && performance.now() - this.seatT > 700 && Math.hypot(inp.ix, inp.iz) > .6) this.stand();
+      const tx = still ? 0 : (fx * inp.iz + rx * inp.ix) * SPEED, ty = still ? 0 : (fy * inp.iz + ry * inp.ix) * SPEED;
       const kk = 1 - Math.exp(-dt / .2);
       this.vel.x += (tx - this.vel.x) * kk; this.vel.y += (ty - this.vel.y) * kk;
       if (Math.hypot(this.vel.x, this.vel.y) > .01 && this.fadeDir === 0) {
@@ -345,10 +387,15 @@
         this._vis = 0; const lv = this.levelOf(this.z);
         this.spots.forEach((g) => {
           const s = g.userData.s, d = Math.hypot(this.px - s.x, this.py - s.y);
-          g.visible = s.lv === lv && d > 1 && d < 16 && this.sight(this.px, this.py, s.x, s.y, this.z);
+          g.visible = !this.seated && s.lv === lv && d > 1 && d < 16 && this.sight(this.px, this.py, s.x, s.y, this.z);
         });
         this.acts.forEach((a) => {
-          const L = V.layout.lift; a.sp.visible = a.lv === lv && Math.hypot(this.px - L.x, this.py - L.y) < 5;
+          if (a.kind === 'seat') {                       // nearby, same floor, in sight of the open floor in front of it
+            const s = a.s, d = Math.hypot(this.px - s.x, this.py - s.y);
+            a.sp.visible = !this.seated && a.lv === lv && d > .5 && d < 5 && this.sight(this.px, this.py, s.x + s.fx * .6, s.y + s.fy * .6, this.z);
+            return;
+          }
+          const L = V.layout.lift; a.sp.visible = !this.seated && a.lv === lv && Math.hypot(this.px - L.x, this.py - L.y) < 5;
         });
       }
       // gaze picking

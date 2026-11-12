@@ -325,7 +325,7 @@ def ground_floor():
         cushion(x1 - .62, (y0 + y1) / 2 - .2, z + .44, PILLOW_B, rot=90); cushion(x1 - .62, (y0 + y1) / 2 + .9, z + .44, PILLOW_C, rot=90)
         with frame(X(638), Y(985), z, 0): coffee_table(r=.48)
         model('tea_set_01', X(630), Y(985), z + .38, width=.38)
-        with frame(X(638), Y(1068), z, 0): armchair(m=SAGE)
+        with frame(X(638), Y(1068), z, 0): armchair(m=SAGE); seat('Drawing room', LV_GF, 0, .05, .44)
         rug(X(560), Y(1080), X(735), Y(905), RUG_LIVING, z)
         picture('y', y1 - .065 if False else Y(865) - IT / 2 - .004, X(520), X(600), z + 1.2, z + 2.3, ARTS[2], facing=-1) if False else None
         model('Chandelier_02', X(638), Y(985), zc - .85, height=.75)
@@ -344,6 +344,7 @@ def ground_floor():
             for sy in (-.72, 0, .72):
                 with frame(-.62, sy, 0, -90): dining_chair()
                 with frame(.62, sy, 0, 90): dining_chair()
+            seat('Dining', LV_GF, -.62, 0, .5, face=(1, 0))
             model('ceramic_vase_01', 0, .25, .76, height=.3)
             for sy in (-.6, .6): box(-.18, sy - .14, .76, .18, sy + .14, .765, LINEN)
         blk(LV_GF, tx - 1.3, ty - .85, tx + 1.3, ty + .85)
@@ -367,7 +368,7 @@ def ground_floor():
             box(tvx + .05, a, zc - .22, tvx + .32, b, zc - .2, LED)
         with frame(tvx + .05, Y(360), z, 90): tv_unit(2.4)
         blk(LV_GF, tvx, Y(540), tvx + .55, Y(195))
-        with frame(X(825), Y(330), z, 90): sofa(2.4)
+        with frame(X(825), Y(330), z, 90): sofa(2.4); seat('Living', LV_GF, 0, .1, .48)
         with frame(X(745), Y(225), z, 180): sofa(1.9)
         cushion(X(842) - .1, Y(300), z + .44, PILLOW_B, rot=90); cushion(X(842) - .1, Y(380), z + .44, PILLOW_A, rot=90); cushion(X(745), Y(214) - .1, z + .44, PILLOW_C, rot=180)
         blk_px(LV_GF, 785, 195, RT, 420); blk_px(LV_GF, 670, 195, RT, 262)
@@ -400,7 +401,7 @@ def ground_floor():
         blk(LV_GF, hx - 1.15, y1 - 2.4, hx + 1.15, y1); blk(LV_GF, hx - 1.7, y1 - .6, hx + 1.7, y1)
         with frame(X(330), y0 + IT / 2 + .62, z, 0): wardrobe(2.6, h=2.7)          # wardrobe on the bottom wall
         blk_px(LV_GF, 230, 495, 430, 540)
-        with frame(X(478), Y(330), z, 90): armchair(m=SAGE)
+        with frame(X(478), Y(330), z, 90): armchair(m=SAGE); seat('Guest bedroom', LV_GF, 0, .05, .44)
         model('potted_plant_04', X(365) + 1.45, Y(TOP) - WT / 2 - .05 - .32, z + .55, height=.2)
         walk(LV_GF, x0, y0, x1, y1); walk_px(LV_GF, 105, 195, 223, 330)
         probe('guest', LV_GF, x0, y0, z, x1, y1, z + CH)
@@ -458,7 +459,7 @@ def first_floor():
         # ---- family lounge: L sofa, mural on the west partition (stair side), arc lamp, TV unit
         x0, y0, x1, y1 = R(440, 543, RT, 865)
         false_ceiling(x0, y0 + IT / 2, x1 - WT / 2, y1 - IT / 2, z, downs=[(X(480), Y(580)), (X(830), Y(580)), (X(480), Y(830)), (X(830), Y(830))])
-        with frame(X(830), Y(650), z, 90): sofa(2.4, m=mat('sofaCamel', '#B88B5A', .9, tex='velvet.jpg', tile=.6))
+        with frame(X(830), Y(650), z, 90): sofa(2.4, m=mat('sofaCamel', '#B88B5A', .9, tex='velvet.jpg', tile=.6)); seat('Family lounge', LV_FF, 0, .1, .48)
         with frame(X(745), Y(578), z, 180): sofa(1.9, m=mat('sofaCamel', '#B88B5A', .9, tex='velvet.jpg', tile=.6))
         cushion(X(845) - .12, Y(620), z + .44, BOUCLE2, rot=90); cushion(X(845) - .12, Y(700), z + .44, PILLOW_B, rot=90)
         blk_px(LV_FF, 790, 548, RT, 740); blk_px(LV_FF, 665, 548, RT, 612)
@@ -509,7 +510,7 @@ def first_floor():
             sphere(hx + dx, hy - .25, z + 1.55, .05, LAMP)
         rug(hx - 1.5, hy - 3.0, hx + 1.5, hy - .9, RUG_CLOUD, z)
         blk(LV_FF, hx - 1.2, hy - 2.4, hx + 1.2, hy); blk(LV_FF, hx - 1.8, hy - .6, hx + 1.8, hy)
-        with frame(X(690), Y(265), z, 90): sofa(1.7, m=SAGE)
+        with frame(X(690), Y(265), z, 90): sofa(1.7, m=SAGE); seat('Master bedroom', LV_FF, 0, .1, .48)
         with frame(X(620), Y(285), z, 0): side_table(h=.45)
         blk_px(LV_FF, 645, 200, 722, 335); blk_px(LV_FF, 600, 265, 640, 305)
         with frame(X(408), Y(543) + IT / 2 + .62, z, 0): wardrobe(2.8, h=2.7)
@@ -529,7 +530,7 @@ def first_floor():
         # master balcony (north)
         bx0, by0, bx1, by1 = R(727, TOP, 870, 543)
         walk(LV_FF, bx0 + .1, by0 + .05, bx1 - .1, by1 - .05)
-        with frame(X(800), Y(300), z, 0): balcony_set(tea=True)
+        with frame(X(800), Y(300), z, 0): balcony_set(tea=True); seat('Master balcony', LV_FF, 0, .55, .48, face=(1, 0))
         blk_px(LV_FF, 760, 250, 845, 355)
         plant('shrub_sorrel_01', X(800), Y(500), z, .75, pot=POT_D, pr=.24)
         blk_px(LV_FF, 770, 470, 835, 530)
@@ -554,6 +555,7 @@ def first_floor():
         blk_px(LV_FF, 240, 1115, 600, FR)
         for xx in (628, 683):
             with frame(X(xx), Y(1125), z, 0): armchair(m=SAGE, w=.72, d=.75)
+        with frame(X(628), Y(1125), z, 0): seat('Bedroom 2', LV_FF, 0, .05, .44)
         blk_px(LV_FF, 600, 1095, 720, FR)
         walk(LV_FF, x0 + IT / 2, Y(FR) + WT / 2, X(727) - WT / 2, Y(997) - IT / 2)
         walk(LV_FF, x0 + IT / 2, Y(FR) + WT / 2, X(607), Y(865) - IT / 2)
@@ -562,7 +564,7 @@ def first_floor():
         probe('bed2', LV_FF, x0, y0, z, X(727), y1, z + CH)
         bx0, by0, bx1, by1 = R(727, 865, 870, FR)
         walk(LV_FF, bx0 + .1, by0 + .1, bx1 - .1, by1 - .1)
-        with frame(X(800), Y(960), z, 0): balcony_set()
+        with frame(X(800), Y(960), z, 0): balcony_set(); seat('Bedroom 2 balcony', LV_FF, 0, .55, .48, face=(0, -1))
         blk_px(LV_FF, 760, 940, 845, 1045)
         with frame(X(815), Y(1105), z, 90): swing(hang=CH)
         blk_px(LV_FF, 735, 1090, 790, 1150)
@@ -649,7 +651,8 @@ def second_floor():
         for (a0, b0, a1, b1) in ((ix0 + .35, iy0 + .33, ix1 - .35, iy0 + .35), (ix0 + .35, iy1 - .35, ix1 - .35, iy1 - .33), (ix0 + .33, iy0 + .35, ix0 + .35, iy1 - .35), (ix1 - .35, iy0 + .35, ix1 - .33, iy1 - .35)):
             box(a0, b0, zc - .25, a1, b1, zc - .23, LED)
         box(ix0 + .04, iy0 + .35, z + .5, ix0 + .06, iy1 - .35, z + 2.45, mat('screenFrame', '#0A0A0A', .9))
-        box(ix0 + .06, iy0 + .45, z + .6, ix0 + .065, iy1 - .45, z + 2.35, SCREEN)
+        box(ix0 + .05, iy0 + .43, z + .58, ix0 + .06, iy1 - .43, z + 2.37, BLACKM)                     # screen frame
+        picture('x', ix0 + .062, iy0 + .45, iy1 - .45, z + .6, z + 2.35, SCREEN, facing=1)             # one image, edge to edge
         for yy in (iy0 + .25, iy1 - .25):
             box(ix0 + .1, yy - .2, z, ix0 + .45, yy + .2, z + 1.1, BLACK, bevel=.01)
         SEAT = mat('reclinerLeather', '#9A7B66', .45, tex='brown_leather', tile=.8, gloss=0)
@@ -666,6 +669,7 @@ def second_floor():
                     box(-.36, -.38, .44, .36, .3, .56, SEAT, bevel=.06, seg=2)
                     for sx in (-.42, .42): box(sx - .07, -.4, .44, sx + .07, .45, .68, SEAT, bevel=.04)
                     box(-.25, -.47, .1, .25, -.45, .12, LED)          # glow strip under the footrest
+                    if dz == .2 and yy == seats_y[0]: seat('Home theatre', LV_SF, 0, -.05, .56, face=(0, -1))
         for yy in np.arange(iy0 + .3, iy1 - .2, .8):
             box(ix1 - .06, yy - .06, z + .3, ix1 - .04, yy + .06, z + .34, LED)     # step lights on the back wall
         for xx in (X(300), X(500)):
@@ -681,7 +685,7 @@ def second_floor():
             for yy in pg: box(xx - .06, yy - .06, z, xx + .06, yy + .06, z + 2.8, BLACKM); blockrect(LV_SF, xx - .1, yy - .1, xx + .1, yy + .1)
             box(xx - .06, pg[0], z + 2.8, xx + .06, pg[1], z + 2.95, BLACKM)
         for yy in np.arange(pg[0], pg[1], .18): box(tx0 + .2, yy - .03, z + 2.95, tx1 - .3, yy + .03, z + 3.07, TEAK)
-        with frame(tx1 - .75, ty1 - 2.6, z, 90): sofa(2.6, m=mat('outdoorFab', '#D8D2C6', 1., tex='weave.jpg', tile=.4), base=TEAK)
+        with frame(tx1 - .75, ty1 - 2.6, z, 90): sofa(2.6, m=mat('outdoorFab', '#D8D2C6', 1., tex='weave.jpg', tile=.4), base=TEAK); seat('Terrace', LV_SF, 0, .1, .48)
         cushion(tx1 - .9, ty1 - 3.3, z + .44, PILLOW_C, rot=90); cushion(tx1 - .9, ty1 - 1.9, z + .44, PILLOW_B, rot=90)
         with frame(tx1 - 2.0, ty1 - 2.6, z, 0):
             box(-.45, -.6, .32, .45, .6, .36, TEAK, bevel=.006); box(-.4, -.55, 0, .4, .55, .32, BLACKM)

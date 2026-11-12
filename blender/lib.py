@@ -358,7 +358,7 @@ def model(name, x, y, z, height=None, width=None, rot=0., scale=None, max_faces=
 
 
 # ---------------------------------------------------------------- navigation data for the viewer
-LAYOUT = {'levels': [], 'walk': [], 'block': [], 'ramps': [], 'spots': [], 'probes': []}
+LAYOUT = {'levels': [], 'walk': [], 'block': [], 'ramps': [], 'spots': [], 'probes': [], 'seats': []}
 
 
 def level(name, z):
@@ -381,6 +381,13 @@ def ramp(x0, y0, x1, y1, axis, z0, z1, lv0, lv1):
 
 def spot(name, lv, x, y, look_x, look_y, look_z=None, start=False):
     LAYOUT['spots'].append({'name': name, 'lv': lv, 'x': x, 'y': y, 'lx': look_x, 'ly': look_y, 'lz': look_z, 'start': start})
+
+
+def seat(name, lv, x=0., y=0., h=.45, face=(0, 1)):
+    """A place to sit (one per area): local point and facing in the current furniture frame; h = seat height."""
+    M = _frame[-1]; p = M @ Vector((x, y, 0)); d = (M.to_3x3() @ Vector((face[0], face[1], 0))).normalized()
+    LAYOUT['seats'].append({'name': name, 'lv': lv, 'x': round(p.x, 3), 'y': round(p.y, 3), 'z': round(p.z, 3), 'h': h,
+                            'fx': round(d.x, 3), 'fy': round(d.y, 3)})
 
 
 def probe(name, lv, x0, y0, z0, x1, y1, z1, at=None):
