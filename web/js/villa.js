@@ -6,8 +6,8 @@
   const T = AFRAME.THREE;
   const V = (window.V = window.V || {});
   const qs = new URLSearchParams(location.search);
-  const mobile = qs.has('q') ? qs.get('q') === 'low' : /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
-  V.Q = { full: qs.has('full'), mobile, debug: qs.has('debug'), probeSize: mobile ? 128 : 256, aniso: mobile ? 4 : 8, noProbes: qs.has('noprobes') };
+  const mobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) || qs.get('q') === 'low';        // ?q=low|high also forces the tier
+  V.Q = { full: qs.has('full'), mobile, debug: qs.has('debug'), probeSize: mobile ? 128 : 256, aniso: mobile ? 4 : 8, noProbes: qs.has('noprobes'), hq: false, gpu: '' };
   V.B = (x, y, z = 0) => new T.Vector3(x, z, -y);
   V.U = { time: { value: 0 } };
   const progress = (m, f) => V.onProgress && V.onProgress(m, f);
@@ -15,12 +15,51 @@
   /* ---------------- textures ---------------- */
   const texLoader = new T.TextureLoader(), texCache = {};
   function tex(path, srgb = true, repeat = true) {
+    const hqName = V.hqTex && path.split('/').pop().replace(/\.\w+$/, '');
+    if (hqName && V.hqTex[hqName]) return V.hqTex[hqName];
     if (texCache[path]) return texCache[path];
     const t = texLoader.load(path);
     t.flipY = false; t.colorSpace = srgb ? T.SRGBColorSpace : T.NoColorSpace;
     if (repeat) t.wrapS = t.wrapT = T.RepeatWrapping;
     t.anisotropy = V.Q.aniso;
     return (texCache[path] = t);
+  }
+  /* quality tier: strong phone GPUs (and desktops) get full-resolution lightmaps, 2K textures and relief maps, all as
+     GPU-compressed KTX2 (Basis UASTC -> ASTC / BC7). ?q=high or ?q=low overrides. */
+  const TRANSCODER = 'https://cdn.jsdelivr.net/npm/three@0.173.0/examples/jsm/libs/basis/';
+  function strongGPU(gpu) {
+    if (!mobile) return true;
+    if (/Apple|Immortalis|Xclipse/i.test(gpu)) return true;
+    const a = /Adreno\D*(\d{3})/i.exec(gpu); if (a) { const n = +a[1]; return (n >= 640 && n < 700) || n >= 720; }
+    const m = /Mali-G(\d+)/i.exec(gpu); if (m) { const n = +m[1]; return (n >= 76 && n < 100) || n >= 710; }
+    return false;
+  }
+  async function pickTier(sceneEl) {
+    const r = sceneEl.renderer || await new Promise((res) => sceneEl.addEventListener('renderstart', () => res(sceneEl.renderer), { once: true }));
+    const gl = r.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info');
+    V.Q.gpu = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+    const want = qs.get('q');
+    V.Q.hq = !!T.KTX2Loader && want !== 'low' && (want === 'high' || strongGPU(V.Q.gpu));
+    if (V.Q.hq) {
+      V.Q.aniso = Math.min(16, r.capabilities.getMaxAnisotropy()); V.Q.probeSize = 256;
+      V.k2 = new T.KTX2Loader().setTranscoderPath(TRANSCODER).setWorkerLimit(4).detectSupport(r);
+    } else if (mobile) {                                    // weaker phones: keep the canvas modest
+      sceneEl.maxCanvasSize = { width: 1800, height: 1800 }; sceneEl.resize && sceneEl.resize();
+    }
+    // headset: render at (or above) the panel's native resolution on strong GPUs
+    const xrs = parseFloat(qs.get('xrs') || (V.Q.hq ? (mobile ? '1.15' : '1.3') : '1'));
+    if (r.xr && r.xr.setFramebufferScaleFactor) r.xr.setFramebufferScaleFactor(xrs);
+    console.log('[villa] gpu', V.Q.gpu, '| tier', V.Q.hq ? 'high' : 'standard', '| aniso', V.Q.aniso, '| xr scale', xrs);
+    return r;
+  }
+  async function preloadHQ() {
+    const meta = await fetch('assets/hq/hq.json').then((x) => x.json());
+    V.hqMeta = meta; const tx = {}, nor = {};
+    await Promise.all([
+      ...meta.tex.map(async (n) => { const t = await V.k2.loadAsync('assets/hq/tex/' + n + '.ktx2'); t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = V.Q.aniso; tx[n] = t; }),
+      ...meta.relief.map(async (n) => { const t = await V.k2.loadAsync('assets/hq/tex/' + n + '_n.ktx2'); t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = V.Q.aniso; t.colorSpace = T.NoColorSpace; nor[n] = t; }),
+    ]);
+    V.hqTex = tx; V.hqNor = nor;
   }
   const loadTex = (path, srgb) => new Promise((res, rej) => texLoader.load(path, (t) => { t.flipY = false; t.colorSpace = srgb ? T.SRGBColorSpace : T.NoColorSpace; res(t); }, undefined, rej));
 
@@ -30,17 +69,43 @@
     mat.envMap = probe.tex; mat.combine = T.AddOperation; mat.reflectivity = 0;
     const box = probe.box3, at = probe.pos;
     mat.userData.gl = { uGloss: { value: gloss }, uBoxMin: { value: box.min.clone() }, uBoxMax: { value: box.max.clone() }, uProbePos: { value: at.clone() } };
+    patchSurface(mat);
+  }
+  /* relief: the tangent frame comes from screen-space derivatives (no tangents in the mesh); the normal map tilts a
+     fixed soft key light and darkens cavities, multiplying the baked light, and also bends the gloss reflections. */
+  function patchSurface(mat) {
+    const d = mat.userData, det = d.det, gl = d.gl;
+    if (!det && !gl) return;
     mat.onBeforeCompile = (sh) => {
-      Object.assign(sh.uniforms, mat.userData.gl, { uTime: V.U.time });
+      Object.assign(sh.uniforms, gl || { uGloss: { value: 0 }, uBoxMin: { value: new T.Vector3() }, uBoxMax: { value: new T.Vector3() }, uProbePos: { value: new T.Vector3() } }, { uTime: V.U.time });
+      if (det) Object.assign(sh.uniforms, { uDet: { value: det.tex }, uRelief: { value: det.s } });
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec3 vWN;')
-        .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz; vWN = normalize(mat3(modelMatrix) * objectNormal);');
+        .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz; vWN = normalize(mat3(modelMatrix) * normal);');
       sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec3 vWN; uniform float uGloss; uniform vec3 uBoxMin; uniform vec3 uBoxMax; uniform vec3 uProbePos; uniform float uTime;')
+        .replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec3 vWN; uniform float uGloss; uniform vec3 uBoxMin; uniform vec3 uBoxMax; uniform vec3 uProbePos; uniform float uTime;' +
+          (det ? '\nuniform sampler2D uDet; uniform float uRelief;' : ''))
+        .replace('#include <aomap_fragment>', `#include <aomap_fragment>
+  vec3 Nd = normalize(vWN);
+#ifdef USE_DET
+  {
+    vec3 Ng = gl_FrontFacing ? Nd : -Nd;
+    vec3 dp1 = dFdx(vWP), dp2 = dFdy(vWP); vec2 du1 = dFdx(vMapUv), du2 = dFdy(vMapUv);
+    vec3 dp2p = cross(dp2, Ng), dp1p = cross(Ng, dp1);
+    vec3 Tt = dp2p * du1.x + dp1p * du2.x, Bt = dp2p * du1.y + dp1p * du2.y;
+    float im = inversesqrt(max(max(dot(Tt, Tt), dot(Bt, Bt)), 1e-20));
+    vec3 nt = texture2D(uDet, vMapUv).xyz * 2.0 - 1.0;
+    vec3 Np = normalize(Tt * im * nt.x + Bt * im * nt.y + Ng * max(nt.z, 0.2));
+    float sh = 1.0 + dot(Np - Ng, normalize(vec3(0.35, 0.85, 0.4))) * uRelief * 1.6;
+    sh *= mix(1.0, clamp(nt.z, 0.0, 1.0), 0.8 * uRelief);
+    reflectedLight.indirectDiffuse *= clamp(sh, 0.55, 1.35);
+    Nd = gl_FrontFacing ? Np : -Np;
+  }
+#endif`)
         .replace('#include <envmap_fragment>', `
 #ifdef USE_ENVMAP
   vec3 Vd = normalize(vWP - cameraPosition);
-  vec3 Nn = normalize(vWN);
+  vec3 Nn = Nd;
   #ifdef IS_WATER
     Nn = normalize(Nn + vec3(sin(vWP.x * 3.1 + uTime * 1.3) + sin(vWP.z * 2.3 - uTime * 1.1), 0.0, cos(vWP.z * 2.9 + uTime * 1.2) + sin(vWP.x * 1.7 + uTime * .9)) * 0.035);
   #endif
@@ -54,8 +119,8 @@
   outgoingLight += envC * fr;
 #endif`);
     };
-    mat.customProgramCacheKey = () => 'gloss' + (mat.userData.water ? 'w' : '');
-    if (mat.userData.water) mat.defines = { IS_WATER: '' };
+    mat.customProgramCacheKey = () => 'surf' + (gl ? 'g' : '') + (d.water ? 'w' : '') + (det ? 'd' : '');
+    mat.defines = Object.assign({}, d.water ? { IS_WATER: '' } : {}, det ? { USE_DET: '' } : {});
     mat.needsUpdate = true;
   }
   // wind in the leaves (garden trees are world-space cards; sway grows with height)
@@ -95,6 +160,8 @@
       m = new T.MeshBasicMaterial({ map, color: srcColor(u.tint), side: k === 'cut' ? T.DoubleSide : side, alphaTest: k === 'cut' ? .5 : 0 });
       if (zone.light) { m.lightMap = zone.light; m.lightMapIntensity = zone.lmax * Math.PI * (V.exposure || 1); m.userData.zone = zone.name; V.lightMats.push(m); }
       if (u.gloss > 0) m.userData.glossWant = u.gloss;
+      const nm = u.tex && V.hqNor && V.hqNor[u.tex.replace(/\.\w+$/, '')];
+      if (nm) { m.userData.det = { tex: nm, s: parseFloat(qs.get('relief') || '.7') }; patchSurface(m); }
     }
     m.name = src.name; m.userData.k = k;
     return m;
@@ -138,10 +205,19 @@
   /* ---------------- loading ---------------- */
   V.lightMats = []; V.mood = 'day';
   const lmaxOf = (z, mood) => (typeof z.lmax === 'object' ? z.lmax[mood] || z.lmax.day : z.lmax) || 1;
+  async function loadLight(z, mood) {
+    const sfx = mood === 'day' ? '' : '_' + mood, name = z.light.split('/').pop().replace('.jpg', '') + sfx;
+    const t = V.Q.hq && V.hqMeta && V.hqMeta.lights.includes(name) ? await V.k2.loadAsync('assets/hq/light/' + name + '.ktx2') : await loadTex(lightPath(z, mood), true);
+    t.channel = 1; t.wrapS = t.wrapT = T.ClampToEdgeWrapping; if (!t.isCompressedTexture) t.generateMipmaps = true;
+    return t;
+  }
   const lightPath = (z, mood) => 'assets/' + z.light.replace('.jpg', (mood === 'day' ? '' : '_' + mood) + (V.Q.mobile && !V.Q.full ? '_m' : '') + '.jpg');
   async function loadVilla(el) {
     progress('Reading the plan', .03);
+    await pickTier(el.sceneEl);
+    const hqReady = V.Q.hq ? preloadHQ().catch((e) => { console.warn('[villa] hq textures failed, using standard', e); V.Q.hq = false; V.hqTex = V.hqNor = null; }) : null;
     const [scene, layout, grid] = await Promise.all([fetch('assets/scene.json').then((r) => r.json()), fetch('assets/layout.json').then((r) => r.json()), loadGrid()]);
+    await hqReady;
     V.layout = layout; V.scene = scene; V.grid = grid;
     const root = new T.Group(); root.name = 'villa';
     const loader = new T.GLTFLoader();
@@ -150,9 +226,8 @@
     V.zones = {};
     await Promise.all(names.map(async (zn) => {
       const z = scene.zones[zn];
-      const [g, light, fx, pl] = await Promise.all([loader.loadAsync('assets/' + z.glb), loadTex(lightPath(z, 'day'), true),
+      const [g, light, fx, pl] = await Promise.all([loader.loadAsync('assets/' + z.glb), loadLight(z, 'day'),
         z.fx ? loader.loadAsync('assets/' + z.fx) : null, z.plants ? loader.loadAsync('assets/' + z.plants) : null]);
-      light.channel = 1; light.wrapS = light.wrapT = T.ClampToEdgeWrapping; light.generateMipmaps = true;
       const zone = { name: zn, light, lmax: lmaxOf(z, 'day'), meshes: [], lights: { day: light }, src: z };
       const mats = new Map();
       const take = (obj) => obj.traverse((o) => {
@@ -171,12 +246,31 @@
       V.zones[zn] = zone;
       progress('Furnishing ' + ({ ext: 'the garden', gf: 'the ground floor', ff: 'the first floor', sf: 'the second floor' }[zn] || zn), .1 + .7 * (++done / names.length));
     }));
+    if (layout.lamps && layout.lamps.length) root.add(V.glows = makeGlows(layout.lamps));
     // sky: tone-mapped HDRI on a big sphere; clouds drift slowly
     const sky = new T.Mesh(new T.SphereGeometry(800, 48, 24), new T.MeshBasicMaterial({ map: await loadTex('assets/sky.jpg', true), side: T.BackSide, depthWrite: false, fog: false, toneMapped: false }));
     sky.material.map.flipY = true; sky.material.map.needsUpdate = true; sky.renderOrder = -10; sky.name = 'sky';
     root.add(sky); V.sky = sky;
     el.setObject3D('villa', root); V.root = root;
     return root;
+  }
+
+  function makeGlows(lamps) {
+    const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
+    const g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.12, 'rgba(255,255,255,.55)'); g.addColorStop(.4, 'rgba(255,255,255,.12)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+    const map = new T.CanvasTexture(c), grp = new T.Group(); grp.userData.noProbe = true; grp.name = 'glows';
+    [[0, .45], [1, .9]].forEach(([big, size]) => {              // downlights small, pendants and lamps larger
+      const pts = lamps.filter((l) => (l[3] === 'POINT') === !!big);
+      if (!pts.length) return;
+      const pos = new Float32Array(pts.length * 3), col = new Float32Array(pts.length * 3);
+      pts.forEach((l, i) => { const v = V.B(l[0], l[1], l[2]); pos.set([v.x, v.y, v.z], i * 3); col.set([l[4], l[5], l[6]].map((k) => k * .8), i * 3); });
+      const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.BufferAttribute(pos, 3)); geo.setAttribute('color', new T.BufferAttribute(col, 3));
+      const m = new T.PointsMaterial({ map, size, sizeAttenuation: true, vertexColors: true, transparent: true, depthWrite: false, blending: T.AdditiveBlending, toneMapped: false, opacity: .22 });
+      const p = new T.Points(geo, m); p.frustumCulled = false; p.renderOrder = 6; grp.add(p);
+    });
+    return grp;
   }
 
   /* ---------------- reflection probes ---------------- */
@@ -221,7 +315,7 @@
       g.clearGroups();
       order.forEach((p, i) => {
         const list = byProbe.get(p); g.addGroup(newIdx.length, list.length, i); newIdx.push(...list);
-        const mm = m.material.clone(); mm.userData = { ...m.material.userData };
+        const ud = m.material.userData; m.material.userData = {}; const mm = m.material.clone(); m.material.userData = ud; mm.userData = { ...ud };       // userData holds textures: keep it out of the JSON copy
         if (mm.lightMap) V.lightMats.push(mm);
         patchGloss(mm, p, m.material.userData.glossWant); mats.push(mm);
       });
@@ -245,10 +339,7 @@
     const zs = Object.values(V.zones).filter((z) => (z.src.moods || ['day']).includes(mood));
     if (!zs.length) return;
     await Promise.all(zs.map(async (z) => {
-      if (!z.lights[mood]) {
-        const t = await loadTex(lightPath(z.src, mood), true);
-        t.channel = 1; t.wrapS = t.wrapT = T.ClampToEdgeWrapping; z.lights[mood] = t;
-      }
+      if (!z.lights[mood]) z.lights[mood] = await loadLight(z.src, mood);
     }));
     if (!V.skies) V.skies = { day: V.sky.material.map };
     if (!V.skies[mood]) { const t = await loadTex(mood === 'day' ? 'assets/sky.jpg' : 'assets/sky_' + mood + '.jpg', true); t.flipY = true; t.needsUpdate = true; V.skies[mood] = t; }
@@ -265,6 +356,7 @@
     })));
     V.plantMeshes.forEach((p) => { const a = p.mesh.geometry.getAttribute('color'); a.array.set(p.light[mood] || p.light.day); a.needsUpdate = true; });
     V.sky.material.map = V.skies[mood]; V.sky.material.color.setScalar(mood === 'day' ? 1 : .9);
+    if (V.glows) V.glows.children.forEach((p) => (p.material.opacity = mood === 'day' ? .22 : .85));
     const r = sceneEl.renderer; r.toneMappingExposure = (V.tmBase || 1.15) * (mood === 'day' ? 1 : (V.nightGain || 1.6));
     recapture(r, sceneEl.object3D);
     document.body.classList.toggle('dusk', mood !== 'day');

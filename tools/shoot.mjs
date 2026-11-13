@@ -17,7 +17,7 @@ for (const s of spots) {
   const t0 = Date.now();
   const [mood, sp] = s.includes(":") ? s.split(":") : ["day", s];
   const custom = sp.startsWith('@');            // @x,y,level,lookx,looky[,pitch] : any viewpoint in plan metres
-  await page.goto(`http://127.0.0.1:8090/?debug&mood=${mood}&spot=${custom ? 'Arrival' : encodeURIComponent(sp)}`);
+  await page.goto(`http://127.0.0.1:8090/?debug${process.env.QS || ""}&mood=${mood}&spot=${custom ? 'Arrival' : encodeURIComponent(sp)}`);
   await page.waitForFunction(() => document.body.classList.contains('ready'), null, { timeout: 120000 });
   if (custom) await page.evaluate((v) => {
     const [x, y, lv, lx, ly, pitch] = v.slice(1).split(',').map(Number), n = V.nav, lc = document.getElementById('cam').components['look-controls'];
@@ -25,7 +25,7 @@ for (const s of spots) {
     n.el.object3D.rotation.y = Math.atan2(-(lx - x), ly - y);
   }, sp);
   await page.waitForTimeout(mood === "night" ? 3500 : 1500);
-  await page.screenshot({ path: `${out}${s.replace(/[ :@,.]/g, "_")}.png` });
+  await page.screenshot({ path: `${out}${process.env.TAG || ""}${s.replace(/[ :@,.]/g, "_")}.png` });
   console.log('shot', s, Date.now() - t0, 'ms');
 }
 await browser.close();

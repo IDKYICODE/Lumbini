@@ -822,7 +822,8 @@ spot('Bedroom 3', LV_SF, X(570), Y(500), X(418), Y(200), 1.3)
 spot('Home theatre', LV_SF, X(150), Y(870) - .6, X(105), Y(1010), 1.4) if False else spot('Home theatre', LV_SF, X(520), Y(1000), X(105), Y(1010), 1.3)
 spot('Terrace', LV_SF, X(700), Y(1100), X(760), Y(300), 1.3)
 spot('Plunge pool', LV_SF, X(660), Y(760), X(820), Y(1000), .6)
-finish(sc, {'levelsZ': LVZ, 'sun': [30., 35.], 'plan': 'E350',
+LAMPS = [[round(L[1][0], 3), round(L[1][1], 3), round(L[1][2], 3), L[0], *[round(c, 3) for c in L[4]]] for L in LIGHTS if L[0] in ('SPOT', 'POINT') and L[1]]
+finish(sc, {'lamps': LAMPS, 'levelsZ': LVZ, 'sun': [30., 35.], 'plan': 'E350',
             'lift': {'x': X(SW1) + IT / 2 + .05, 'y': (Y(845) + Y(742)) / 2, 'out': .85, 'badgeDy': .62, 'levels': [LV_GF, LV_FF, LV_SF], 'labels': ['G', '1', '2']}})
 bpy.context.view_layer.update()
 bpy.ops.wm.save_as_mainfile(filepath=str(OUT / 'villa.blend'))

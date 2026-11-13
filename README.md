@@ -50,6 +50,7 @@ python tools/fetch_assets.py && python tools/gen_textures.py          # once
 "$B" -b build/villa.blend -P blender/check_plants.py                  # every plant clear of furniture and walls
 "$B" -b build/villa.blend -P blender/bake.py [-- --quick]             # bake (--quick: 1024 px, ~90 s; full ~25 min)
 python tools/post.py
+python tools/hq.py                                                    # GPU-compressed KTX2: full-res lightmaps, 2K textures, relief maps (needs toktx)
 node tools/walktest.mjs                                               # 10 keyboard walks: street to every floor, theatre, terrace, deck, lift
 node tools/shoot.mjs Arrival Living                                   # headless screenshots (PW=<dir with playwright-core>)
 ```
