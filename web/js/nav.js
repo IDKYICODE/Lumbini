@@ -59,11 +59,12 @@
         if (e.code === 'KeyN' || e.code === 'PageDown' || e.key === 'MediaTrackNext' || e.code === 'MediaTrackNext') this.step(1);
         if (e.code === 'KeyP' || e.code === 'PageUp' || e.key === 'MediaTrackPrevious' || e.code === 'MediaTrackPrevious') this.step(-1);
         if (e.code === 'KeyL') this.toggleMood();
+        if (e.code === 'KeyV' && V.voice) V.voice.start();          // hold V and speak
         if (e.key === 'AudioVolumeUp') this.step(1);
         if (e.key === 'AudioVolumeDown') this.step(-1);
         if (/^Arrow|Space|PageUp|PageDown/.test(e.code)) e.preventDefault();
       });
-      window.addEventListener('keyup', (e) => (this.keys[e.code] = false));
+      window.addEventListener('keyup', (e) => { this.keys[e.code] = false; if (e.code === 'KeyV' && V.voice) V.voice.stop(); });
       window.addEventListener('blur', () => (this.keys = {}));
       window.addEventListener('click', (e) => { if (this.ready && this.el.sceneEl.is('vr-mode') && !e.target.closest('#hud')) this.confirm(); });
       this.touchUI = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || /[?&]touch/.test(location.search);
@@ -227,7 +228,14 @@
         nav.appendChild(b); this.chips.push(b);
       });
       const hint = document.getElementById('hint');
-      if (hint && this.touchUI) hint.textContent = 'Tap VR, put the phone in the headset · remote stick to walk · button to go where you look';
+      if (hint && this.touchUI) hint.textContent = 'Tap VR, put the phone in the headset · remote stick to walk · button to go where you look · hold button 3 and say “go to the pool”';
+      else if (hint && V.voice && V.voice.supported) hint.textContent += ' · hold V and say “go to the kitchen”';
+      const mic = document.getElementById('mic');
+      if (mic && V.voice && V.voice.supported) {
+        mic.onclick = (e) => { e.stopPropagation(); document.body.classList.contains('listening') ? V.voice.stop() : V.voice.start(); };
+        document.body.classList.add('voice');
+        if (this.touchUI) V.voice.primeMic();               // ask for the microphone now: the prompt cannot show inside the headset
+      }
     },
     setupTouch(sceneEl) {
       const cv = sceneEl.canvas; let down = null; cv.style.touchAction = 'none';
@@ -343,7 +351,11 @@
       if (inp.btn[0] && !pb[0]) this.confirm();
       if ((inp.btn[1] && !pb[1]) || (inp.btn[5] && !pb[5])) this.step(1);
       if ((inp.btn[2] && !pb[2]) || (inp.btn[4] && !pb[4])) this.step(-1);
-      if (inp.btn[3] && !pb[3]) this.toggleMood();
+      // button 3: hold to speak a command, a quick tap switches day / evening
+      const talk = V.voice && V.voice.supported;
+      if (inp.btn[3] && !pb[3]) { this.b3 = performance.now(); talk ? V.voice.start() : this.toggleMood(); }
+      if (!inp.btn[3] && pb[3] && talk) { if (performance.now() - this.b3 < 350) { V.voice.cancel(); this.toggleMood(); } else V.voice.stop(); }
+      if (V.voice) V.voice.tick();
       this.prevBtn = inp.btn;
 
       // walk relative to gaze on the floor plane; plan coords: x = three x, y = -three z

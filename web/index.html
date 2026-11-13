@@ -14,6 +14,7 @@
   <script>new WebXRPolyfill();</script>
   <script src="js/villa.js"></script>
   <script src="js/nav.js"></script>
+  <script src="js/voice.js"></script>
   <style>
     :root { --cream:#F3EDE4; --sand:#E2D5C3; --brown:#5A3A28; --deep:#2B1E16; --gold:#B9905C; --ink:#FBF8F3; --panel:rgba(43,30,22,.78); }
     html, body { margin:0; height:100%; overflow:hidden; background:var(--deep); color:var(--ink); font:15px/1.45 Jost, system-ui, sans-serif; }
@@ -38,6 +39,11 @@
     #where span { font:500 10.5px Jost, sans-serif; letter-spacing:.26em; text-transform:uppercase; color:#E9DCC9; text-shadow:0 1px 8px rgba(0,0,0,.5); }
     #mood { position:fixed; top:14px; right:16px; z-index:12; display:none; align-items:center; gap:8px; font:500 12.5px Jost, sans-serif; letter-spacing:.06em; color:var(--ink); background:var(--panel); border:1px solid rgba(185,144,92,.55); border-radius:999px; padding:8px 14px 8px 11px; cursor:pointer; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
     #mood svg { width:16px; height:16px; }
+    #mic { position:fixed; top:14px; right:118px; z-index:12; display:none; align-items:center; gap:7px; font:500 12.5px Jost, sans-serif; letter-spacing:.06em; color:var(--ink); background:var(--panel); border:1px solid rgba(185,144,92,.55); border-radius:999px; padding:8px 14px 8px 11px; cursor:pointer; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+    #mic svg { width:16px; height:16px; } body.listening #mic { background:#7A2E22; border-color:#E2604A; }
+    body.voice.ready:not(.vr) #mic { display:flex; } body.debugging #mic { top:auto; bottom:142px; right:16px; }
+    #voiceMsg { position:fixed; left:50%; top:16px; transform:translateX(-50%); z-index:12; display:none; font:500 14px Jost, sans-serif; color:var(--ink); background:var(--panel); border:1px solid rgba(185,144,92,.55); border-radius:999px; padding:8px 18px; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+    #voiceMsg.on { display:block; } body.vr #voiceMsg { display:none !important; }
     #stand { position:fixed; left:50%; bottom:96px; transform:translateX(-50%); z-index:12; display:none; font:500 13px Jost, sans-serif; letter-spacing:.06em; color:var(--ink); background:var(--panel); border:1px solid rgba(185,144,92,.55); border-radius:999px; padding:9px 20px; cursor:pointer; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
     body.seated:not(.vr) #stand { display:block; }
     /* A-Frame's enter-VR button (its icon reads as "fullscreen"): a labelled pill in the same style as the mood button */
@@ -63,6 +69,8 @@
   </div>
   <div id="where" aria-live="polite"><span id="wfloor"></span><b id="wroom"></b></div>
   <button id="stand">Stand up</button>
+  <button id="mic" aria-label="Speak a command"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>Voice</span></button>
+  <div id="voiceMsg"><span id="voiceTxt"></span></div>
   <button id="mood" aria-label="Switch between day and evening light">
     <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>
     <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M19.5 14.6A8 8 0 0 1 9.4 4.5a8 8 0 1 0 10.1 10.1Z"/></svg>
