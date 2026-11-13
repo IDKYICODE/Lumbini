@@ -431,7 +431,7 @@
 
       if (this.dbg && ((this._dt = (this._dt || 0) + dt) > .25)) {
         this._dt = 0; const inf = this.el.sceneEl.renderer.info;
-        this.dbg.textContent = `fps ${(1 / dt).toFixed(0)}  calls ${inf.render.calls}  tris ${inf.render.triangles}  tex ${inf.memory.textures}\nplan ${this.px.toFixed(2)}, ${this.py.toFixed(2)}  z ${this.z.toFixed(2)}  lv ${this.levelOf(this.z)}  target ${tgt ? tgt.t + ':' + tgt.i : '-'}\nkey ${this.lastKey || '-'}\n${this.padInfo || 'no gamepad'}`;
+        this.dbg.textContent = `fps ${(1 / dt).toFixed(0)}  calls ${inf.render.calls}  tris ${inf.render.triangles}  tex ${inf.memory.textures}\nplan ${this.px.toFixed(2)}, ${this.py.toFixed(2)}  z ${this.z.toFixed(2)}  lv ${this.levelOf(this.z)}  target ${tgt ? tgt.t + ':' + tgt.i : '-'}\n${V.Q.hq ? 'HIGH' : 'standard'} · ${(V.Q.gpu || '').replace('ANGLE (', '').slice(0, 46)}${new URLSearchParams(location.search).get('why') ? ' · fell back: ' + new URLSearchParams(location.search).get('why') : ''}\nkey ${this.lastKey || '-'}\n${this.padInfo || 'no gamepad'}`;
       }
     },
     nearestSpotName() {

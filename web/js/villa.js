@@ -34,20 +34,31 @@
     const m = /Mali-G(\d+)/i.exec(gpu); if (m) { const n = +m[1]; return (n >= 76 && n < 100) || n >= 710; }
     return false;
   }
+  function fallBack(why) {
+    if (qs.get('q') === 'low') return;                           // already at the standard tier
+    console.warn('[villa] falling back to standard quality:', why);
+    const u = new URL(location.href); u.searchParams.set('q', 'low'); u.searchParams.set('why', why); location.replace(u.toString());
+  }
+  V.checkGPU = (r) => {
+    const gl = r.getContext(); let e, oom = false;
+    while ((e = gl.getError()) !== gl.NO_ERROR) { if (e === gl.OUT_OF_MEMORY) oom = true; }
+    if (oom && V.Q.hq) fallBack('gpu-memory');
+  };
   async function pickTier(sceneEl) {
     const r = sceneEl.renderer || await new Promise((res) => sceneEl.addEventListener('renderstart', () => res(sceneEl.renderer), { once: true }));
+    r.domElement.addEventListener('webglcontextlost', (e) => { e.preventDefault(); if (V.Q.hq) fallBack('context-lost'); });
     const gl = r.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info');
     V.Q.gpu = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
     const want = qs.get('q');
     V.Q.hq = !!T.KTX2Loader && want !== 'low' && (want === 'high' || strongGPU(V.Q.gpu));
     if (V.Q.hq) {
-      V.Q.aniso = Math.min(16, r.capabilities.getMaxAnisotropy()); V.Q.probeSize = 256;
+      V.Q.aniso = Math.min(16, r.capabilities.getMaxAnisotropy()); V.Q.probeSize = mobile ? 128 : 256;     // cube probes are half-float: keep phones lean
       V.k2 = new T.KTX2Loader().setTranscoderPath(TRANSCODER).setWorkerLimit(4).detectSupport(r);
     } else if (mobile) {                                    // weaker phones: keep the canvas modest
       sceneEl.maxCanvasSize = { width: 1800, height: 1800 }; sceneEl.resize && sceneEl.resize();
     }
     // headset: render at (or above) the panel's native resolution on strong GPUs
-    const xrs = parseFloat(qs.get('xrs') || (V.Q.hq ? (mobile ? '1.15' : '1.3') : '1'));
+    const xrs = parseFloat(qs.get('xrs') || (V.Q.hq && !mobile ? '1.3' : '1'));
     if (r.xr && r.xr.setFramebufferScaleFactor) r.xr.setFramebufferScaleFactor(xrs);
     console.log('[villa] gpu', V.Q.gpu, '| tier', V.Q.hq ? 'high' : 'standard', '| aniso', V.Q.aniso, '| xr scale', xrs);
     return r;
@@ -378,6 +389,8 @@
           setTimeout(() => {
             if (!V.Q.noProbes) captureProbes(r, sceneEl.object3D);
             console.log('[villa] ready in', Math.round(performance.now() - t0), 'ms');
+            V.checkGPU(r); setTimeout(() => V.checkGPU(r), 4000);     // uploads finish over the first frames
+            if (qs.get('why')) console.warn('[villa] standard quality after', qs.get('why'));
             progress('Welcome', 1);
             sceneEl.emit('villa-ready');
             if (qs.get('mood') === 'night') V.setMood('night', sceneEl);
