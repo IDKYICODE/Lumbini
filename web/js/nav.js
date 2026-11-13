@@ -351,10 +351,10 @@
       if (inp.btn[0] && !pb[0]) this.confirm();
       if ((inp.btn[1] && !pb[1]) || (inp.btn[5] && !pb[5])) this.step(1);
       if ((inp.btn[2] && !pb[2]) || (inp.btn[4] && !pb[4])) this.step(-1);
-      // button 3: hold to speak a command, a quick tap switches day / evening
+      // button 3 (Y): hold to speak a command (day / evening is by voice, not a button)
       const talk = V.voice && V.voice.supported;
-      if (inp.btn[3] && !pb[3]) { this.b3 = performance.now(); talk ? V.voice.start() : this.toggleMood(); }
-      if (!inp.btn[3] && pb[3] && talk) { if (performance.now() - this.b3 < 350) { V.voice.cancel(); this.toggleMood(); } else V.voice.stop(); }
+      if (inp.btn[3] && !pb[3] && talk) V.voice.start();
+      if (!inp.btn[3] && pb[3] && talk) V.voice.stop();
       if (V.voice) V.voice.tick();
       this.prevBtn = inp.btn;
 

@@ -1,5 +1,5 @@
 /* Voice commands: "go to the pool", "ground floor", "sit down", "evening"...
-   Push to talk: hold remote button 3 (a quick tap still switches day / evening), hold V on a keyboard, or tap the mic
+   Push to talk: hold remote button 3 (Y), hold V on a keyboard, or tap the mic
    pill on a phone outside the headset. Uses the browser's speech recognition (Chrome sends the audio to Google, so it
    needs a connection). V.voice.match(text) is pure and testable: it returns the action, or null. */
 (function () {
