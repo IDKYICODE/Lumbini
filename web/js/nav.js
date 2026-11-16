@@ -307,6 +307,7 @@
       if (wr) wr.textContent = room; if (wf) wf.textContent = floor || '';
     },
     applyPending(p) {
+      if (p.t === 'fn') return p.fn();                        // guided tour: the guide's teleports, applied behind the fade
       if (p.t === 'mood') { this.holdFade = true; V.setMood(p.mood, this.el.sceneEl).finally(() => { this.moodBusy = false; this.holdFade = false; }); return; }
       if (p.t === 'spot') this.place(p.i);
       else if (p.t === 'sit') this.sitDown(p.s);
@@ -427,7 +428,7 @@
         if (this.hoverText !== hover.label) { this.hoverText = hover.label; drawLabel(this.hoverC, hover.label); this.hoverT.needsUpdate = true; }
         this.hover.position.copy(hover.sp.position); this.hover.position.y += .3; this.hover.visible = true;
       } else this.hover.visible = false;
-      this.ret.visible = vr; this.retMat.color.set(tgt ? 0xF1C98A : 0xffffff); this.ret.scale.setScalar(tgt ? 1.8 : 1);
+      this.ret.visible = vr || !!V.showReticle; this.retMat.color.set(tgt ? 0xF1C98A : 0xffffff); this.ret.scale.setScalar(tgt ? 1.8 : 1);
 
       if (this.dbg && ((this._dt = (this._dt || 0) + dt) > .25)) {
         this._dt = 0; const inf = this.el.sceneEl.renderer.info;

@@ -1,0 +1,9 @@
+{
+  "name": "vana-villa-relay",
+  "private": true,
+  "description": "Pairs a guide laptop with a client headset for the Vana villa guided tour",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" },
+  "dependencies": { "ws": "^8.18.0" }
+}

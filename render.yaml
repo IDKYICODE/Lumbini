@@ -8,3 +8,12 @@ services:
       - path: /assets/*
         name: Cache-Control
         value: public, max-age=86400
+  # guided tour: pairs the guide's laptop with the client's headset (websocket relay, nothing stored)
+  - type: web
+    name: vana-villa-relay
+    runtime: node
+    rootDir: relay
+    buildCommand: npm install --omit=dev
+    startCommand: node server.js
+    plan: free
+    healthCheckPath: /
